@@ -85,4 +85,40 @@ def SecretRefresh(request):
     except:
         return HttpResponseRedirect(request.META['HTTP_REFERER'])
 ---------------------------------------------------------------------
+notification
 
+from django.http import HttpResponse
+from django.contrib.auth.decorators import login_required
+
+import zmq
+
+from zmq_settings import user_publisher_host, user_publisher_port
+from django.contrib.auth.models import User
+from notification_core.extra import commonReturn
+
+context = zmq.Context()
+
+user_publisher = context.socket(zmq.PUB)
+user_publisher.bind(user_publisher_host+':'+user_publisher_port)
+
+
+def user_notification(request, types=None):
+    try:
+        service = request.GET.get('service')
+        message = request.GET.get('message')
+        user= request.GET.get('username')
+        user_id = User.objects.get(username__iexact=user).id
+        final_message = str(user_id+'_'+service+'_'+message)
+        user_publisher.send(final_message)
+        status = "Success"
+        message = "Notification send successfully to %s. Message was- %s " %(user_id, final_message)
+    except:
+        status = "Error"
+        message = "Notification sending failed"
+    return commonReturn(status, message, types)
+    
+
+@login_required
+def resp(request):
+    return HttpResponse(request.user.get_full_name())
+-------------------------------------------------------------------
